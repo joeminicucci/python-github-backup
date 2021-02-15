@@ -46,7 +46,6 @@ def log_error(message):
     Log message (str) or messages (List[str]) to stderr and exit with status 1
     """
     log_warning(message)
-    sys.exit(1)
 
 
 def log_info(message):
@@ -467,6 +466,7 @@ def retrieve_data_gen(args, template, query_args=None, single_request=False):
             template = 'API request returned HTTP {0}: {1}'
             errors.append(template.format(status_code, r.reason))
             log_error(errors)
+            break
 
         response = json.loads(r.read().decode('utf-8'))
         if len(errors) == 0:
@@ -669,19 +669,21 @@ def retrieve_repositories(args, authenticated_user):
             args.user,
             args.repository)
 
-    repos = retrieve_data(args, template, single_request=single_request)
+    repos = [repo for repo in (retrieve_data(args, template, single_request=single_request)) if repo is not None]
 
     if args.all_starred:
         starred_template = 'https://{0}/users/{1}/starred'.format(get_github_api_host(args), args.user)
-        starred_repos = retrieve_data(args, starred_template, single_request=False)
+        starred_repos = [starred for starred in (retrieve_data(args, starred_template, single_request=False)) if starred is not None]
         # flag each repo as starred for downstream processing
+
         for item in starred_repos:
             item.update({'is_starred': True})
         repos.extend(starred_repos)
 
     if args.include_gists:
         gists_template = 'https://{0}/users/{1}/gists'.format(get_github_api_host(args), args.user)
-        gists = retrieve_data(args, gists_template, single_request=False)
+        gists = [gist for gist in (retrieve_data(args, gists_template, single_request=False)) if gist is not None]
+
         # flag each repo as a gist for downstream processing
         for item in gists:
             item.update({'is_gist': True})
